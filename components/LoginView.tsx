@@ -1,5 +1,5 @@
 import React from 'react';
-import { Wallet } from 'lucide-react';
+import { Wallet, ShieldCheck } from 'lucide-react';
 import { User } from '../types';
 
 interface Props {
@@ -62,9 +62,15 @@ const LoginView: React.FC<Props> = ({ onLoginSuccess }) => {
         </button>
       </div>
       
-      <p className="mt-8 text-xs text-gray-400 text-center px-6">
-        By continuing, you agree to our Terms of Service and Privacy Policy.
-      </p>
+      <div className="mt-8 flex flex-col items-center gap-2">
+        <div className="flex items-center gap-2 px-4 py-2 bg-green-50 rounded-full border border-green-100">
+           <ShieldCheck size={16} className="text-green-600" />
+           <span className="text-[10px] font-bold text-green-700 uppercase tracking-wide">Local Storage Only</span>
+        </div>
+        <p className="text-xs text-gray-400 text-center px-6 max-w-xs">
+          Your financial data stays on your device. We do not sync your transactions to the cloud.
+        </p>
+      </div>
     </div>
   );
 };

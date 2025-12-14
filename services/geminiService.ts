@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { Transaction, TransactionType } from "../types";
+import { Transaction } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -13,17 +13,15 @@ export const getFinancialAdvice = async (transactions: Transaction[]): Promise<s
     `- ${t.date.split('T')[0]}: ${t.type.toUpperCase()} of $${t.amount} for ${t.category} (${t.note})`
   ).join('\n');
 
-  const prompt = `
-    You are a personal finance assistant. Here are my recent transactions:
-    
-    ${transactionSummary}
-    
-    Based on this data, provide:
-    1. A brief 1-sentence summary of my spending behavior.
-    2. Three specific, actionable tips to save money or improve my financial health.
-    
-    Keep the tone encouraging but professional. Format the output with clear headings.
-  `;
+  const prompt = `You are a personal finance assistant. Here are my recent transactions:
+
+${transactionSummary}
+
+Based on this data, provide:
+1. A brief 1-sentence summary of my spending behavior.
+2. Three specific, actionable tips to save money or improve my financial health.
+
+Keep the tone encouraging but professional. Format the output with clear headings.`;
 
   try {
     const response = await ai.models.generateContent({

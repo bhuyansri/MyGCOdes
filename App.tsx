@@ -165,7 +165,7 @@ const App: React.FC = () => {
       case AppView.ANALYTICS:
         return <AnalyticsView transactions={transactions} settings={settings} />;
       case AppView.AI_INSIGHTS:
-        return <AiInsightsView transactions={transactions} />;
+        return <AiInsightsView transactions={transactions} settings={settings} />;
       case AppView.SETTINGS:
         return (
           <SettingsView 

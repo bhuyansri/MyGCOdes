@@ -61,6 +61,7 @@ export interface Settings {
     [key in ExpenseTag]: number;
   };
   privacyModeEnabled: boolean;
+  enableAI: boolean; // New setting for Privacy Control
 }
 
 export interface User {

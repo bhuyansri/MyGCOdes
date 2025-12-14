@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Settings, ExpenseTag, Goal, Currency } from '../types';
-import { ArrowLeft, Save, Plus, Trash2, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2, CheckCircle, Shield, AlertTriangle } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { db } from '../services/databaseService';
 
 interface Props {
   settings: Settings;
@@ -97,6 +98,13 @@ const SettingsView: React.FC<Props> = ({ settings, goals, onSaveSettings, onAddG
           setNewGoalTarget('');
       }
   };
+  
+  const handleWipeData = async () => {
+      if (confirm("ARE YOU SURE? This will permanently delete ALL transactions, settings, and account info from this device. This action cannot be undone.")) {
+          await db.clearAllData();
+          window.location.reload(); // Hard reload to reset app state
+      }
+  };
 
   return (
     <div className="pb-24 animate-fade-in">
@@ -132,6 +140,50 @@ const SettingsView: React.FC<Props> = ({ settings, goals, onSaveSettings, onAddG
                     >
                         <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${localSettings.privacyModeEnabled ? 'translate-x-6' : ''}`}></div>
                     </button>
+                </div>
+            </div>
+        </section>
+        
+        {/* Privacy & Data */}
+        <section className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex items-center gap-2 mb-4 border-b pb-2">
+                <Shield size={20} className="text-green-600" />
+                <h3 className="font-bold text-gray-800">Privacy & Data</h3>
+            </div>
+            
+            <div className="space-y-6">
+                <div className="bg-green-50 p-3 rounded-lg border border-green-100">
+                    <p className="text-xs text-green-800 font-medium">
+                        Your financial data is stored locally on this device. We do not track, sell, or sync your data to any cloud servers by default.
+                    </p>
+                </div>
+
+                <div className="flex items-center justify-between">
+                    <div>
+                        <span className="text-gray-700 font-medium block">Enable AI Advisor</span>
+                        <span className="text-[10px] text-gray-500 max-w-[200px] block leading-tight mt-1">
+                            Sends anonymized transaction summaries to Google Gemini for processing. Disable to keep data 100% offline.
+                        </span>
+                    </div>
+                    <button 
+                        onClick={() => setLocalSettings({...localSettings, enableAI: !localSettings.enableAI})}
+                        className={`w-12 h-6 rounded-full transition-colors relative shrink-0 ${localSettings.enableAI ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                    >
+                        <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${localSettings.enableAI ? 'translate-x-6' : ''}`}></div>
+                    </button>
+                </div>
+
+                <div className="pt-2 border-t border-gray-100">
+                    <button 
+                        onClick={handleWipeData}
+                        className="w-full flex items-center justify-center gap-2 text-red-600 bg-red-50 py-3 rounded-xl text-sm font-bold hover:bg-red-100 transition-colors"
+                    >
+                        <AlertTriangle size={18} />
+                        Delete All Data & Reset
+                    </button>
+                    <p className="text-[10px] text-center text-gray-400 mt-2">
+                        Permanently wipes local storage database.
+                    </p>
                 </div>
             </div>
         </section>

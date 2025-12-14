@@ -20,7 +20,8 @@ const DEFAULT_SETTINGS: Settings = {
     [ExpenseTag.INVEST]: 20,
     [ExpenseTag.ADJUSTMENT]: 0
   },
-  privacyModeEnabled: false
+  privacyModeEnabled: false,
+  enableAI: true // Default to true, but user can disable
 };
 
 export const db = {
@@ -75,10 +76,13 @@ export const db = {
     const data = localStorage.getItem(STORAGE_KEYS.SETTINGS);
     if (!data) return DEFAULT_SETTINGS;
     
-    // Migration: If old settings exist without categories, add them
+    // Migration: If old settings exist without categories or enableAI, add them
     const parsed = JSON.parse(data);
     if (!parsed.categories) {
         parsed.categories = Object.values(Category);
+    }
+    if (parsed.enableAI === undefined) {
+        parsed.enableAI = true;
     }
     return parsed;
   },
@@ -122,5 +126,14 @@ export const db = {
     };
     
     return JSON.stringify(exportData, null, 2);
+  },
+
+  // --- Privacy & Cleanup ---
+  async clearAllData(): Promise<void> {
+    localStorage.removeItem(STORAGE_KEYS.TRANSACTIONS);
+    localStorage.removeItem(STORAGE_KEYS.USER);
+    localStorage.removeItem(STORAGE_KEYS.PIN);
+    localStorage.removeItem(STORAGE_KEYS.SETTINGS);
+    localStorage.removeItem(STORAGE_KEYS.GOALS);
   }
 };
