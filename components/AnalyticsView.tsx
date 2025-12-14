@@ -70,19 +70,25 @@ const AnalyticsView: React.FC<Props> = ({ transactions, settings }) => {
     color: COLORS[index % COLORS.length]
   })).sort((a, b) => b.value - a.value);
 
-  // 3. Account Balances (Current Snapshot - NOT affected by time filter usually, 
-  //    but prompt says "Account Balance of all the bank in Analytics Screen. Values of (Income, Expence and parked)")
-  //    Typically balances are lifetime, so we use `transactions` prop, NOT `filteredTransactions` for current balance.
+  // 3. Account Balances
+  // Calculate per account, factoring in transfers
   const accountBalances = settings.bankAccounts.map(acc => {
       const income = transactions.filter(t => t.type === TransactionType.INCOME && t.bankAccount === acc).reduce((sum, t) => sum + t.amount, 0);
       const expense = transactions.filter(t => t.type === TransactionType.EXPENSE && t.bankAccount === acc).reduce((sum, t) => sum + t.amount, 0);
       const parked = transactions.filter(t => t.type === TransactionType.PARKED && t.bankAccount === acc).reduce((sum, t) => sum + t.amount, 0);
+      
+      const transfersIn = transactions.filter(t => t.type === TransactionType.TRANSFER && t.toAccount === acc).reduce((sum, t) => sum + t.amount, 0);
+      const transfersOut = transactions.filter(t => t.type === TransactionType.TRANSFER && t.bankAccount === acc).reduce((sum, t) => sum + t.amount, 0);
+
+      const netTransfer = transfersIn - transfersOut;
+
       return {
           name: acc,
           income,
           expense,
           parked,
-          balance: income - expense - parked
+          transfer: netTransfer,
+          balance: income - expense - parked + netTransfer
       };
   });
 
@@ -130,9 +136,12 @@ const AnalyticsView: React.FC<Props> = ({ transactions, settings }) => {
                              {settings.currencySymbol}{acc.balance.toLocaleString()}
                          </span>
                      </div>
-                     <div className="flex justify-between text-[10px] text-gray-400">
+                     <div className="flex flex-wrap justify-between text-[10px] text-gray-400 gap-y-1">
                          <span className="text-green-600">+{settings.currencySymbol}{acc.income.toLocaleString()}</span>
                          <span className="text-red-400">-{settings.currencySymbol}{acc.expense.toLocaleString()}</span>
+                         {acc.transfer !== 0 && (
+                            <span className="text-blue-500">Tr: {acc.transfer > 0 ? '+' : ''}{settings.currencySymbol}{acc.transfer.toLocaleString()}</span>
+                         )}
                          <span className="text-purple-400">Pk: {settings.currencySymbol}{acc.parked.toLocaleString()}</span>
                      </div>
                  </div>

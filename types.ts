@@ -2,6 +2,7 @@ export enum TransactionType {
   INCOME = 'income',
   EXPENSE = 'expense',
   PARKED = 'parked',
+  TRANSFER = 'transfer',
 }
 
 // Keeping Enum for default initialization, but app will use strings mostly
@@ -15,7 +16,8 @@ export enum Category {
   SALARY = 'Salary',
   FREELANCE = 'Freelance',
   OTHER = 'Other',
-  GOAL_CONTRIBUTION = 'Goal Contribution'
+  GOAL_CONTRIBUTION = 'Goal Contribution',
+  TRANSFER = 'Inter Account Transfer'
 }
 
 export enum ExpenseTag {
@@ -34,7 +36,8 @@ export interface Transaction {
   note: string;
   
   tag?: ExpenseTag;        // Required for Expense
-  bankAccount?: string;    // Required for Income, Parked AND Expense now
+  bankAccount?: string;    // Required for Income, Parked, Expense (Source), Transfer (Source)
+  toAccount?: string;      // Required for Transfer (Destination)
   goalId?: string;         // Required for Parked
 }
 
@@ -43,6 +46,15 @@ export interface Goal {
   name: string;
   targetAmount: number;
   deadline?: string;
+}
+
+export interface ExchangeCard {
+  id: string;
+  from: string;
+  to: string;
+  amount: number;
+  rate: number | null;
+  lastUpdated: string | null;
 }
 
 export interface Currency {
@@ -56,12 +68,20 @@ export interface Settings {
   currencyCode: string;   // Storing the code (e.g. USD)
   bankAccounts: string[];
   parkAccounts: string[]; 
-  categories: string[];   // Dynamic list of categories
+  
+  // Split categories
+  expenseCategories: string[];
+  incomeCategories: string[];
+
   tagLimits: {
     [key in ExpenseTag]: number;
   };
   privacyModeEnabled: boolean;
-  enableAI: boolean; // New setting for Privacy Control
+  enableAI: boolean; 
+  
+  // New Settings
+  primaryAccount: string; // The "Main Bank" logic
+  dashboardScope: 'ALL' | 'PRIMARY'; // Calculate overview based on all or just main
 }
 
 export interface User {
@@ -80,7 +100,8 @@ export enum AppView {
   ANALYTICS = 'analytics',
   AI_INSIGHTS = 'ai_insights',
   SETTINGS = 'settings',
-  GOALS = 'goals'
+  GOALS = 'goals',
+  EXCHANGE_RATE = 'exchange_rate'
 }
 
 export interface ExpenseSummary {

@@ -1,34 +1,59 @@
 import React, { useState } from 'react';
 import { Transaction, TransactionType, Settings } from '../types';
-import { TrendingUp, TrendingDown, Wallet, ArrowUpRight, ArrowDownLeft, Download, Eye, EyeOff, Settings as SettingsIcon, Archive } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, ArrowUpRight, ArrowDownLeft, Download, Eye, EyeOff, Settings as SettingsIcon, Archive, ArrowRightLeft, Globe } from 'lucide-react';
 import { db } from '../services/databaseService';
 
 interface Props {
   transactions: Transaction[];
   settings: Settings;
   onOpenSettings: () => void;
+  onOpenExchange: () => void;
   isPrivacyMode: boolean;
   onTogglePrivacy: () => void;
   onEditTransaction: (t: Transaction) => void;
 }
 
-const DashboardView: React.FC<Props> = ({ transactions, settings, onOpenSettings, isPrivacyMode, onTogglePrivacy, onEditTransaction }) => {
+const DashboardView: React.FC<Props> = ({ transactions, settings, onOpenSettings, onOpenExchange, isPrivacyMode, onTogglePrivacy, onEditTransaction }) => {
   const [filterType, setFilterType] = useState<'ALL' | TransactionType>('ALL');
 
-  const totalIncome = transactions
+  // Filter based on selected scope (ALL vs PRIMARY)
+  const scopeTransactions = transactions.filter(t => {
+      if (settings.dashboardScope === 'ALL') return true;
+      // If Primary Only: Include if it affects the primary account
+      return t.bankAccount === settings.primaryAccount || t.toAccount === settings.primaryAccount;
+  });
+
+  const totalIncome = scopeTransactions
     .filter(t => t.type === TransactionType.INCOME)
+    .filter(t => settings.dashboardScope === 'ALL' || t.bankAccount === settings.primaryAccount)
     .reduce((acc, curr) => acc + curr.amount, 0);
 
-  const totalExpense = transactions
+  const totalExpense = scopeTransactions
     .filter(t => t.type === TransactionType.EXPENSE)
+    .filter(t => settings.dashboardScope === 'ALL' || t.bankAccount === settings.primaryAccount)
     .reduce((acc, curr) => acc + curr.amount, 0);
   
-  const totalParked = transactions
+  const totalParked = scopeTransactions
     .filter(t => t.type === TransactionType.PARKED)
+    .filter(t => settings.dashboardScope === 'ALL' || t.bankAccount === settings.primaryAccount)
     .reduce((acc, curr) => acc + curr.amount, 0);
 
-  // Net Balance: Income - Expenses - Parked (Since Parked is set aside)
-  const balance = totalIncome - totalExpense - totalParked;
+  // Transfer Calculation logic
+  let transferNet = 0;
+  if (settings.dashboardScope === 'PRIMARY') {
+      const incomingTransfers = scopeTransactions
+        .filter(t => t.type === TransactionType.TRANSFER && t.toAccount === settings.primaryAccount)
+        .reduce((acc, curr) => acc + curr.amount, 0);
+        
+      const outgoingTransfers = scopeTransactions
+        .filter(t => t.type === TransactionType.TRANSFER && t.bankAccount === settings.primaryAccount)
+        .reduce((acc, curr) => acc + curr.amount, 0);
+        
+      transferNet = incomingTransfers - outgoingTransfers;
+  }
+  // If scope is ALL, transferNet is 0 because money just moved inside the system.
+
+  const balance = totalIncome - totalExpense - totalParked + transferNet;
 
   const filteredTransactions = transactions
     .filter(t => filterType === 'ALL' || t.type === filterType)
@@ -59,7 +84,10 @@ const DashboardView: React.FC<Props> = ({ transactions, settings, onOpenSettings
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">My Wallet</h1>
-          <p className="text-sm text-gray-500">Overview</p>
+          <p className="text-sm text-gray-500">
+              {settings.dashboardScope === 'PRIMARY' ? `${settings.primaryAccount} Overview` : 'Total Net Worth'}
+              {db.isForeignView() && <span className="ml-2 bg-orange-100 text-orange-600 px-2 py-0.5 rounded text-[10px] font-bold uppercase">Foreign View</span>}
+          </p>
         </div>
         <div className="flex gap-2">
             <button onClick={onTogglePrivacy} className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 active:bg-gray-200">
@@ -67,6 +95,9 @@ const DashboardView: React.FC<Props> = ({ transactions, settings, onOpenSettings
             </button>
             <button onClick={handleExport} className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 active:bg-gray-200">
                 <Download size={18} />
+            </button>
+             <button onClick={onOpenExchange} className="h-10 w-10 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 active:bg-indigo-100">
+                <Globe size={18} />
             </button>
             <button onClick={onOpenSettings} className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600">
                 <SettingsIcon size={20} />
@@ -102,12 +133,12 @@ const DashboardView: React.FC<Props> = ({ transactions, settings, onOpenSettings
       </div>
 
       {/* View Tabs */}
-      <div className="flex p-1 bg-gray-200 rounded-xl">
-          {(['ALL', TransactionType.INCOME, TransactionType.EXPENSE, TransactionType.PARKED] as const).map(type => (
+      <div className="flex p-1 bg-gray-200 rounded-xl overflow-x-auto no-scrollbar">
+          {(['ALL', TransactionType.INCOME, TransactionType.EXPENSE, TransactionType.TRANSFER, TransactionType.PARKED] as const).map(type => (
               <button
                 key={type}
                 onClick={() => setFilterType(type)}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg capitalize transition-all ${filterType === type ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500'}`}
+                className={`flex-1 py-2 px-3 text-xs font-bold rounded-lg capitalize whitespace-nowrap transition-all ${filterType === type ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500'}`}
               >
                   {type.toLowerCase()}
               </button>
@@ -132,27 +163,32 @@ const DashboardView: React.FC<Props> = ({ transactions, settings, onOpenSettings
                   <div className={`p-2 rounded-full ${
                       t.type === TransactionType.INCOME ? 'bg-green-100 text-green-600' : 
                       t.type === TransactionType.PARKED ? 'bg-purple-100 text-purple-600' :
+                      t.type === TransactionType.TRANSFER ? 'bg-blue-100 text-blue-600' :
                       'bg-red-100 text-red-600'
                     }`}>
                     {t.type === TransactionType.INCOME && <TrendingUp size={18} />}
                     {t.type === TransactionType.EXPENSE && <TrendingDown size={18} />}
                     {t.type === TransactionType.PARKED && <Archive size={18} />}
+                    {t.type === TransactionType.TRANSFER && <ArrowRightLeft size={18} />}
                   </div>
                   <div>
                     <p className="font-semibold text-gray-800">{t.category}</p>
                     <p className="text-xs text-gray-500">
                         {new Date(t.date).toLocaleDateString()} 
-                        {t.bankAccount && ` • ${t.bankAccount}`}
-                        {t.tag && ` • ${t.tag}`}
+                        {t.type === TransactionType.TRANSFER 
+                            ? ` • ${t.bankAccount} → ${t.toAccount}`
+                            : t.bankAccount && ` • ${t.bankAccount}`
+                        }
                     </p>
                   </div>
                 </div>
                 <span className={`font-bold ${
                     t.type === TransactionType.INCOME ? 'text-green-600' : 
                     t.type === TransactionType.PARKED ? 'text-purple-600' :
+                    t.type === TransactionType.TRANSFER ? 'text-blue-600' :
                     'text-gray-900'
                 }`}>
-                  {t.type === TransactionType.INCOME ? '+' : '-'}{formatAmount(t.amount)}
+                  {t.type === TransactionType.INCOME ? '+' : t.type === TransactionType.TRANSFER ? '' : '-'}{formatAmount(t.amount)}
                 </span>
               </div>
             ))

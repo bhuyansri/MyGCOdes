@@ -8,6 +8,7 @@ import LoginView from './components/LoginView';
 import PinView from './components/PinView';
 import SettingsView from './components/SettingsView';
 import GoalView from './components/GoalView';
+import ExchangeRateView from './components/ExchangeRateView';
 import { LayoutDashboard, Plus, PieChart, Sparkles, Trophy } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from './services/databaseService';
@@ -25,9 +26,8 @@ const App: React.FC = () => {
   // State for editing
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
-  // 1. Initial Load
-  useEffect(() => {
-    const initApp = async () => {
+  const loadData = async () => {
+      setIsLoading(true);
       const storedUser = await db.getUser();
       const hasPin = await db.hasPin();
       const storedTransactions = await db.getTransactions();
@@ -50,12 +50,21 @@ const App: React.FC = () => {
         setCurrentView(AppView.LOGIN);
       }
       setIsLoading(false);
-    };
+  };
 
-    initApp();
+  // 1. Initial Load
+  useEffect(() => {
+    loadData();
   }, []);
 
   // --- Handlers ---
+
+  const handleAppModeToggle = async () => {
+    const isForeign = db.isForeignView();
+    await db.toggleForeignView(!isForeign);
+    // Reload data to reflect the new mode's database context
+    await loadData();
+  };
 
   const handleLoginSuccess = async (loggedInUser: User) => {
     await db.saveUser(loggedInUser);
@@ -106,6 +115,15 @@ const App: React.FC = () => {
     // Also update privacy local state if changed in settings
     setIsPrivacyMode(newSettings.privacyModeEnabled);
   };
+  
+  const handleRenameAccount = async (oldName: string, newName: string) => {
+      await db.renameAccount(oldName, newName);
+      // Refresh state
+      const updatedSettings = await db.getSettings();
+      const updatedTransactions = await db.getTransactions();
+      setSettings(updatedSettings);
+      setTransactions(updatedTransactions);
+  };
 
   const handleAddGoal = async (goal: Goal) => {
     await db.saveGoal(goal);
@@ -124,7 +142,7 @@ const App: React.FC = () => {
   }
 
   // Views without nav
-  const fullScreenViews = [AppView.LOGIN, AppView.PIN_SETUP, AppView.PIN_ENTRY, AppView.ADD, AppView.SETTINGS];
+  const fullScreenViews = [AppView.LOGIN, AppView.PIN_SETUP, AppView.PIN_ENTRY, AppView.ADD, AppView.SETTINGS, AppView.EXCHANGE_RATE];
   const showNav = !fullScreenViews.includes(currentView);
 
   const renderView = () => {
@@ -143,10 +161,15 @@ const App: React.FC = () => {
             transactions={transactions} 
             settings={settings} 
             onOpenSettings={() => setCurrentView(AppView.SETTINGS)}
+            onOpenExchange={() => setCurrentView(AppView.EXCHANGE_RATE)}
             isPrivacyMode={isPrivacyMode}
             onTogglePrivacy={() => setIsPrivacyMode(!isPrivacyMode)}
             onEditTransaction={handleEditRequest}
           />
+        );
+      case AppView.EXCHANGE_RATE:
+        return (
+            <ExchangeRateView onBack={() => setCurrentView(AppView.DASHBOARD)} />
         );
       case AppView.ADD:
         return (
@@ -172,15 +195,17 @@ const App: React.FC = () => {
             settings={settings} 
             goals={goals} 
             onSaveSettings={handleSaveSettings} 
+            onRenameAccount={handleRenameAccount}
             onAddGoal={handleAddGoal} 
             onDeleteGoal={handleDeleteGoal}
             onBack={() => setCurrentView(AppView.DASHBOARD)}
+            onToggleAppMode={handleAppModeToggle}
           />
         );
       case AppView.GOALS:
         return <GoalView goals={goals} transactions={transactions} settings={settings} isPrivacyMode={isPrivacyMode} />;
       default:
-        return <DashboardView transactions={transactions} settings={settings} onOpenSettings={() => setCurrentView(AppView.SETTINGS)} isPrivacyMode={isPrivacyMode} onTogglePrivacy={() => setIsPrivacyMode(!isPrivacyMode)} onEditTransaction={handleEditRequest} />;
+        return <DashboardView transactions={transactions} settings={settings} onOpenSettings={() => setCurrentView(AppView.SETTINGS)} onOpenExchange={() => setCurrentView(AppView.EXCHANGE_RATE)} isPrivacyMode={isPrivacyMode} onTogglePrivacy={() => setIsPrivacyMode(!isPrivacyMode)} onEditTransaction={handleEditRequest} />;
     }
   };
 
